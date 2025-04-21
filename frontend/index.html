@@ -129,6 +129,26 @@
             outline: none;
         }
         
+        #toolbar {
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e1e1e1;
+            display: flex;
+            gap: 10px;
+        }
+        
+        #image-upload-btn {
+            background-color: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
         #note-meta {
             font-size: 13px;
             color: #777;
@@ -162,6 +182,11 @@
             padding: 10px 0;
             overflow-y: auto;
             display: none;
+        }
+        
+        #editor img {
+            max-width: 100%;
+            height: auto;
         }
         
         #welcome {
@@ -224,6 +249,14 @@
         .toast.show {
             transform: translateY(0);
             opacity: 1;
+        }
+        
+        .toast.success {
+            background-color: #10b981;
+        }
+        
+        .toast.error {
+            background-color: #ef4444;
         }
         
         #summary-modal {
@@ -313,6 +346,13 @@
             
             <div id="note-header">
                 <input type="text" id="note-title" placeholder="Untitled Note">
+                <!-- Toolbar with image upload button -->
+                <div id="toolbar">
+                    <button id="image-upload-btn">
+                        <span>📷 Insert Image</span>
+                    </button>
+                    <input type="file" id="image-input" accept="image/*" style="display: none;">
+                </div>
                 <div id="note-meta">
                     <span id="last-edited">Last edited: Just now</span>
                     <span id="note-id" style="display: none;"></span>
@@ -478,6 +518,25 @@
                 return await response.json();
             },
             
+            // Upload an image
+            async uploadImage(noteId, file) {
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('noteId', noteId);
+                formData.append('clientId', this.clientId);
+                
+                const response = await fetch(`${this.BASE_URL}/api/note/${noteId}/image`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to upload image');
+                }
+                
+                return await response.json();
+            },
+            
             // Connect to WebSocket
             connectWebSocket(noteId) {
                 if (this.socket) {
@@ -590,6 +649,10 @@
             const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
             const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
             
+            // Image upload elements
+            const imageUploadBtn = document.getElementById('image-upload-btn');
+            const imageInput = document.getElementById('image-input');
+            
             // Current note
             let currentNote = null;
             let updateTimeout = null;
@@ -636,12 +699,52 @@
             
             confirmDeleteBtn.addEventListener('click', deleteCurrentNote);
             
+            // Image upload event listeners
+            imageUploadBtn.addEventListener('click', () => {
+                imageInput.click();
+            });
+            
+            imageInput.addEventListener('change', handleImageUpload);
+            
             // Check URL parameters for note ID
             const urlParams = new URLSearchParams(window.location.search);
             const noteIdParam = urlParams.get('note');
             
             if (noteIdParam) {
                 loadNote(noteIdParam);
+            }
+            
+            // Handle image upload
+            async function handleImageUpload(event) {
+                if (!currentNote || !event.target.files || !event.target.files[0]) return;
+                
+                const file = event.target.files[0];
+                
+                try {
+                    // Show loading toast
+                    showToast('Uploading image...', 'info');
+                    
+                    // Upload image
+                    const result = await API.uploadImage(currentNote.id, file);
+                    
+                    // Insert image into editor
+                    const imageHtml = `<img src="${result.imageUrl}" alt="Uploaded image" style="max-width: 100%;">`;
+                    document.execCommand('insertHTML', false, imageHtml);
+                    
+                    // Reset file input
+                    imageInput.value = null;
+                    
+                    // Save note content
+                    handleContentChange();
+                    
+                    showToast('Image uploaded successfully', 'success');
+                } catch (error) {
+                    console.error('Error uploading image:', error);
+                    showToast('Failed to upload image', 'error');
+                    
+                    // Reset file input
+                    imageInput.value = null;
+                }
             }
             
             // Function to delete the current note
@@ -676,7 +779,7 @@
                     showToast('Note deleted');
                 } catch (error) {
                     console.error('Error deleting note:', error);
-                    showToast('Failed to delete note');
+                    showToast('Failed to delete note', 'error');
                 }
             }
             
@@ -687,7 +790,7 @@
                     renderNotesList(notes);
                 } catch (error) {
                     console.error('Error loading notes:', error);
-                    showToast('Failed to load notes');
+                    showToast('Failed to load notes', 'error');
                 }
             }
             
@@ -760,7 +863,7 @@
                     window.history.replaceState({}, '', url);
                 } catch (error) {
                     console.error('Error loading note:', error);
-                    showToast('Failed to load note');
+                    showToast('Failed to load note', 'error');
                 }
             }
             
@@ -770,10 +873,10 @@
                     const note = await API.createNote();
                     await loadNotes();
                     loadNote(note.id);
-                    showToast('New note created');
+                    showToast('New note created', 'success');
                 } catch (error) {
                     console.error('Error creating note:', error);
-                    showToast('Failed to create note');
+                    showToast('Failed to create note', 'error');
                 }
             }
             
@@ -827,7 +930,7 @@
                         });
                     } catch (error) {
                         console.error('Error updating title:', error);
-                        showToast('Failed to save changes');
+                        showToast('Failed to save changes', 'error');
                     }
                 }, 500);
             }
@@ -852,7 +955,7 @@
                         });
                     } catch (error) {
                         console.error('Error updating content:', error);
-                        showToast('Failed to save changes');
+                        showToast('Failed to save changes', 'error');
                     }
                 }, 500);
                 
@@ -1006,7 +1109,7 @@
             }
             
             // Show toast message
-            function showToast(message) {
+            function showToast(message, type = 'info') {
                 let toast = document.querySelector('.toast');
                 
                 if (!toast) {
@@ -1015,8 +1118,15 @@
                     document.body.appendChild(toast);
                 }
                 
+                // Remove any existing classes
+                toast.classList.remove('show', 'success', 'error');
+                
+                // Set message and add appropriate classes
                 toast.textContent = message;
                 toast.classList.add('show');
+                if (type) {
+                    toast.classList.add(type);
+                }
                 
                 setTimeout(() => {
                     toast.classList.remove('show');
