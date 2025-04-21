@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple CloudNote</title>
+    <style>
+        /* Basic styles */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f7;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+        
+        header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e1e1e1;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            margin: 0;
+            color: #0066CC;
+        }
+        
+        #status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+            background-color: #e1e1e1;
+        }
+        
+        #status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        #sidebar {
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        
+        #sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        #new-note {
+            background-color: #0066CC;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+        }
+        
+        .note-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+        
+        .note-item:hover {
+            background-color: #f5f5f7;
+        }
+        
+        .note-item.active {
+            background-color: #e6f2ff;
+            border-left-color: #0066CC;
+        }
+        
+        .note-title {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .note-date {
+            font-size: 12px;
+            color: #777;
+        }
+        
+        #editor-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        #note-header {
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        #note-title {
+            font-size: 24px;
+            font-weight: 500;
+            width: 100%;
+            padding: 5px 0;
+            margin-bottom: 10px;
+            border: none;
+            border-bottom: 1px solid #e1e1e1;
+            outline: none;
+        }
+        
+        #note-meta {
+            font-size: 13px;
+            color: #777;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #summarize-btn {
+            background-color: #34d399;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+            margin-left: auto;
+        }
+        
+        #delete-btn {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            cursor: pointer;
+        }
+        
+        #editor {
+            flex-grow: 1;
+            outline: none;
+            padding: 10px 0;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        #welcome {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            text-align: center;
+        }
+        
+        #welcome h2 {
+            color: #0066CC;
+            margin-bottom: 20px;
+        }
+        
+        #welcome button {
+            background-color: #0066CC;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .collaborator-cursor {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background-color: #0066CC;
+            pointer-events: none;
+        }
+        
+        .collaborator-label {
+            position: absolute;
+            top: -20px;
+            background-color: #0066CC;
+            color: white;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #323232;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        #summary-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        #summary-content {
+            background-color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        #close-summary-btn {
+            background-color: #e5e7eb;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        
+        #delete-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        #confirm-delete-btn {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+        
+        #cancel-delete-btn {
+            background-color: #e5e7eb;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CloudNote</h1>
+            <div id="status">Disconnected</div>
+        </header>
+        
+        <div id="sidebar">
+            <div id="sidebar-header">
+                <h3>Notes</h3>
+                <button id="new-note">New Note</button>
+            </div>
+            <div id="notes-list">
+                <div class="empty-state">No notes yet</div>
+            </div>
+        </div>
+        
+        <div id="editor-container">
+            <div id="welcome">
+                <h2>Welcome to CloudNote!</h2>
+                <p>Create a new note or select an existing one to get started.</p>
+                <button id="welcome-new-note">Create your first note</button>
+            </div>
+            
+            <div id="note-header">
+                <input type="text" id="note-title" placeholder="Untitled Note">
+                <div id="note-meta">
+                    <span id="last-edited">Last edited: Just now</span>
+                    <span id="note-id" style="display: none;"></span>
+                    <div style="margin-left: auto; display: flex; gap: 8px;">
+                        <button id="delete-btn">
+                            Delete
+                        </button>
+                        <button id="summarize-btn">
+                            Summarize
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete Confirmation Modal -->
+            <div id="delete-modal">
+                <div style="background-color: white; padding: 20px; border-radius: 8px; max-width: 400px; width: 90%;">
+                    <h3 style="margin-top: 0;">Delete Note</h3>
+                    <p>Are you sure you want to delete this note? This action cannot be undone.</p>
+                    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px;">
+                        <button id="cancel-delete-btn">
+                            Cancel
+                        </button>
+                        <button id="confirm-delete-btn">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="editor" contenteditable="true"></div>
+        </div>
+        
+        <!-- Summary Modal -->
+        <div id="summary-modal">
+            <div style="background-color: white; padding: 20px; border-radius: 8px; max-width: 600px; width: 90%;">
+                <h3 style="margin-top: 0;">AI Summary</h3>
+                <div id="summary-content">
+                    <p>Generating summary...</p>
+                </div>
+                <div style="text-align: right;">
+                    <button id="close-summary-btn">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API client for communicating with the backend
+        const API = {
+            // Change these URLs to match your deployed worker
+            BASE_URL: 'https://simple-cloudnote.tevan-raj.workers.dev',
+            WS_URL: 'wss://simple-cloudnote.tevan-raj.workers.dev',
+            
+            // Client ID for this session
+            clientId: 'user_' + Math.random().toString(36).substring(2, 9),
+            
+            // WebSocket connection
+            socket: null,
+            
+            // Callbacks
+            callbacks: {
+                onConnect: () => {},
+                onDisconnect: () => {},
+                onNoteUpdate: () => {},
+                onCollaboratorJoin: () => {},
+                onCollaboratorLeave: () => {},
+                onCollaboratorCursor: () => {}
+            },
+            
+            // Set callbacks
+            setCallbacks(callbacks) {
+                Object.assign(this.callbacks, callbacks);
+            },
+            
+            // Create a new note
+            async createNote() {
+                const response = await fetch(`${this.BASE_URL}/api/note/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: 'Untitled Note',
+                        content: '',
+                        clientId: this.clientId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to create note');
+                }
+                
+                return await response.json();
+            },
+            
+            // Get all notes
+            async getNotes() {
+                const response = await fetch(`${this.BASE_URL}/api/notes`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch notes');
+                }
+                
+                return await response.json();
+            },
+            
+            // Get a specific note
+            async getNote(noteId) {
+                const response = await fetch(`${this.BASE_URL}/api/note/${noteId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch note');
+                }
+                
+                return await response.json();
+            },
+            
+            // Update a note
+            async updateNote(noteId, data) {
+                const response = await fetch(`${this.BASE_URL}/api/note/${noteId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ...data,
+                        clientId: this.clientId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to update note');
+                }
+                
+                return await response.json();
+            },
+            
+            // Delete a note
+            async deleteNote(noteId) {
+                const response = await fetch(`${this.BASE_URL}/api/note/${noteId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete note');
+                }
+                
+                return await response.json();
+            },
+            
+            // Generate summary for a note
+            async generateSummary(noteId, content) {
+                const response = await fetch(`${this.BASE_URL}/api/note/${noteId}/summarize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content,
+                        clientId: this.clientId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to generate summary');
+                }
+                
+                return await response.json();
+            },
+            
+            // Connect to WebSocket
+            connectWebSocket(noteId) {
+                if (this.socket) {
+                    this.socket.close();
+                }
+                
+                this.socket = new WebSocket(`${this.WS_URL}/ws/${noteId}?clientId=${this.clientId}`);
+                
+                this.socket.onopen = () => {
+                    console.log('WebSocket connected');
+                    this.callbacks.onConnect();
+                };
+                
+                this.socket.onclose = () => {
+                    console.log('WebSocket disconnected');
+                    this.callbacks.onDisconnect();
+                    
+                    // Try to reconnect after 2 seconds
+                    setTimeout(() => {
+                        if (noteId) {
+                            this.connectWebSocket(noteId);
+                        }
+                    }, 2000);
+                };
+                
+                this.socket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                };
+                
+                this.socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        
+                        switch (data.type) {
+                            case 'update':
+                                if (data.clientId !== this.clientId) {
+                                    this.callbacks.onNoteUpdate(data);
+                                }
+                                break;
+                            case 'join':
+                                this.callbacks.onCollaboratorJoin(data);
+                                break;
+                            case 'leave':
+                                this.callbacks.onCollaboratorLeave(data);
+                                break;
+                            case 'cursor':
+                                if (data.clientId !== this.clientId) {
+                                    this.callbacks.onCollaboratorCursor(data);
+                                }
+                                break;
+                        }
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+            },
+            
+            // Disconnect WebSocket
+            disconnectWebSocket() {
+                if (this.socket) {
+                    this.socket.close();
+                    this.socket = null;
+                }
+            },
+            
+            // Send update via WebSocket
+            sendUpdate(data) {
+                if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                    this.socket.send(JSON.stringify({
+                        ...data,
+                        clientId: this.clientId,
+                        type: 'update'
+                    }));
+                }
+            },
+            
+            // Send cursor position via WebSocket
+            sendCursorPosition(position) {
+                if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                    this.socket.send(JSON.stringify({
+                        ...position,
+                        clientId: this.clientId,
+                        type: 'cursor'
+                    }));
+                }
+            }
+        };
+        
+        // Main application logic
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM elements
+            const statusEl = document.getElementById('status');
+            const newNoteBtn = document.getElementById('new-note');
+            const welcomeNewNoteBtn = document.getElementById('welcome-new-note');
+            const notesList = document.getElementById('notes-list');
+            const noteTitle = document.getElementById('note-title');
+            const editor = document.getElementById('editor');
+            const welcome = document.getElementById('welcome');
+            const noteHeader = document.getElementById('note-header');
+            const lastEdited = document.getElementById('last-edited');
+            const noteId = document.getElementById('note-id');
+            const summarizeBtn = document.getElementById('summarize-btn');
+            const summaryModal = document.getElementById('summary-modal');
+            const summaryContent = document.getElementById('summary-content');
+            const closeSummaryBtn = document.getElementById('close-summary-btn');
+            
+            // Delete note elements
+            const deleteBtn = document.getElementById('delete-btn');
+            const deleteModal = document.getElementById('delete-modal');
+            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+            const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+            
+            // Current note
+            let currentNote = null;
+            let updateTimeout = null;
+            let isEditorFocused = false;
+            const collaborators = {};
+            
+            // Initialize
+            loadNotes();
+            
+            // Set up API callbacks
+            API.setCallbacks({
+                onConnect: handleConnect,
+                onDisconnect: handleDisconnect,
+                onNoteUpdate: handleNoteUpdate,
+                onCollaboratorJoin: handleCollaboratorJoin,
+                onCollaboratorLeave: handleCollaboratorLeave,
+                onCollaboratorCursor: handleCollaboratorCursor
+            });
+            
+            // Event listeners
+            newNoteBtn.addEventListener('click', createNewNote);
+            welcomeNewNoteBtn.addEventListener('click', createNewNote);
+            noteTitle.addEventListener('input', handleTitleChange);
+            editor.addEventListener('input', handleContentChange);
+            editor.addEventListener('focus', () => { isEditorFocused = true; });
+            editor.addEventListener('blur', () => { isEditorFocused = false; });
+            editor.addEventListener('click', updateCursorPosition);
+            editor.addEventListener('keyup', updateCursorPosition);
+            
+            // Summary feature event listeners
+            summarizeBtn.addEventListener('click', generateSummary);
+            closeSummaryBtn.addEventListener('click', () => {
+                summaryModal.style.display = 'none';
+            });
+            
+            // Delete note event listeners
+            deleteBtn.addEventListener('click', () => {
+                deleteModal.style.display = 'flex';
+            });
+            
+            cancelDeleteBtn.addEventListener('click', () => {
+                deleteModal.style.display = 'none';
+            });
+            
+            confirmDeleteBtn.addEventListener('click', deleteCurrentNote);
+            
+            // Check URL parameters for note ID
+            const urlParams = new URLSearchParams(window.location.search);
+            const noteIdParam = urlParams.get('note');
+            
+            if (noteIdParam) {
+                loadNote(noteIdParam);
+            }
+            
+            // Function to delete the current note
+            async function deleteCurrentNote() {
+                if (!currentNote) return;
+                
+                try {
+                    await API.deleteNote(currentNote.id);
+                    
+                    // Close the modal
+                    deleteModal.style.display = 'none';
+                    
+                    // Disconnect WebSocket
+                    API.disconnectWebSocket();
+                    
+                    // Show welcome screen
+                    welcome.style.display = 'flex';
+                    noteHeader.style.display = 'none';
+                    editor.style.display = 'none';
+                    
+                    // Clear current note
+                    currentNote = null;
+                    
+                    // Reload notes list
+                    await loadNotes();
+                    
+                    // Update URL
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('note');
+                    window.history.replaceState({}, '', url);
+                    
+                    showToast('Note deleted');
+                } catch (error) {
+                    console.error('Error deleting note:', error);
+                    showToast('Failed to delete note');
+                }
+            }
+            
+            // Load all notes
+            async function loadNotes() {
+                try {
+                    const notes = await API.getNotes();
+                    renderNotesList(notes);
+                } catch (error) {
+                    console.error('Error loading notes:', error);
+                    showToast('Failed to load notes');
+                }
+            }
+            
+            // Render notes list in sidebar
+            function renderNotesList(notes) {
+                notesList.innerHTML = '';
+                
+                if (!notes || notes.length === 0) {
+                    notesList.innerHTML = '<div class="empty-state">No notes yet</div>';
+                    return;
+                }
+                
+                // Sort by updated time, newest first
+                notes.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                
+                notes.forEach(note => {
+                    const item = document.createElement('div');
+                    item.className = 'note-item';
+                    item.dataset.id = note.id;
+                    
+                    if (currentNote && note.id === currentNote.id) {
+                        item.classList.add('active');
+                    }
+                    
+                    const date = new Date(note.updatedAt);
+                    const formattedDate = date.toLocaleString();
+                    
+                    item.innerHTML = `
+                        <div class="note-title">${note.title || 'Untitled Note'}</div>
+                        <div class="note-date">${formattedDate}</div>
+                    `;
+                    
+                    item.addEventListener('click', () => loadNote(note.id));
+                    notesList.appendChild(item);
+                });
+            }
+            
+            // Load a specific note
+            async function loadNote(id) {
+                try {
+                    const note = await API.getNote(id);
+                    
+                    // Update UI
+                    welcome.style.display = 'none';
+                    noteHeader.style.display = 'block';
+                    editor.style.display = 'block';
+                    
+                    // Set note data
+                    currentNote = note;
+                    noteTitle.value = note.title || 'Untitled Note';
+                    editor.innerHTML = note.content || '';
+                    noteId.textContent = note.id;
+                    updateLastEdited(note.updatedAt);
+                    
+                    // Update active state in sidebar
+                    document.querySelectorAll('.note-item').forEach(item => {
+                        if (item.dataset.id === note.id) {
+                            item.classList.add('active');
+                        } else {
+                            item.classList.remove('active');
+                        }
+                    });
+                    
+                    // Connect to WebSocket for real-time collaboration
+                    API.connectWebSocket(note.id);
+                    
+                    // Update URL with note ID
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('note', note.id);
+                    window.history.replaceState({}, '', url);
+                } catch (error) {
+                    console.error('Error loading note:', error);
+                    showToast('Failed to load note');
+                }
+            }
+            
+            // Create a new note
+            async function createNewNote() {
+                try {
+                    const note = await API.createNote();
+                    await loadNotes();
+                    loadNote(note.id);
+                    showToast('New note created');
+                } catch (error) {
+                    console.error('Error creating note:', error);
+                    showToast('Failed to create note');
+                }
+            }
+            
+            // Generate a summary of the current note
+            async function generateSummary() {
+                if (!currentNote) return;
+                
+                try {
+                    // Show modal with loading state
+                    summaryContent.innerHTML = '<p>Generating summary...</p>';
+                    summaryModal.style.display = 'flex';
+                    
+                    // Generate summary
+                    const result = await API.generateSummary(currentNote.id, editor.innerHTML);
+                    
+                    if (result.summary) {
+                        // Parse summary content and format for display
+                        summaryContent.innerHTML = `<p>${result.summary.split('\n').join('</p><p>')}</p>`;
+                    } else {
+                        summaryContent.innerHTML = '<p>Could not generate summary. Please try again.</p>';
+                    }
+                } catch (error) {
+                    console.error('Error generating summary:', error);
+                    summaryContent.innerHTML = '<p style="color: #ef4444;">Error generating summary. Please try again.</p>';
+                }
+            }
+            
+            // Handle title changes
+            function handleTitleChange() {
+                if (!currentNote) return;
+                
+                clearTimeout(updateTimeout);
+                updateTimeout = setTimeout(async () => {
+                    try {
+                        const updated = await API.updateNote(currentNote.id, {
+                            title: noteTitle.value
+                        });
+                        
+                        currentNote.title = updated.title;
+                        updateLastEdited(updated.updatedAt);
+                        
+                        // Update title in sidebar
+                        const noteItem = document.querySelector(`.note-item[data-id="${currentNote.id}"]`);
+                        if (noteItem) {
+                            noteItem.querySelector('.note-title').textContent = updated.title || 'Untitled Note';
+                        }
+                        
+                        // Send update via WebSocket
+                        API.sendUpdate({
+                            title: updated.title
+                        });
+                    } catch (error) {
+                        console.error('Error updating title:', error);
+                        showToast('Failed to save changes');
+                    }
+                }, 500);
+            }
+            
+            // Handle content changes
+            function handleContentChange() {
+                if (!currentNote) return;
+                
+                clearTimeout(updateTimeout);
+                updateTimeout = setTimeout(async () => {
+                    try {
+                        const updated = await API.updateNote(currentNote.id, {
+                            content: editor.innerHTML
+                        });
+                        
+                        currentNote.content = editor.innerHTML;
+                        updateLastEdited(updated.updatedAt);
+                        
+                        // Send update via WebSocket
+                        API.sendUpdate({
+                            content: editor.innerHTML
+                        });
+                    } catch (error) {
+                        console.error('Error updating content:', error);
+                        showToast('Failed to save changes');
+                    }
+                }, 500);
+                
+                // Update cursor position
+                updateCursorPosition();
+            }
+            
+            // Update cursor position
+            function updateCursorPosition() {
+                if (!currentNote || !isEditorFocused) return;
+                
+                const selection = window.getSelection();
+                if (selection.rangeCount === 0) return;
+                
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                const editorRect = editor.getBoundingClientRect();
+                
+                const position = {
+                    x: rect.left - editorRect.left,
+                    y: rect.top - editorRect.top
+                };
+                
+                API.sendCursorPosition(position);
+            }
+            
+            // Handle remote note updates
+            function handleNoteUpdate(data) {
+                if (!currentNote || data.clientId === API.clientId) return;
+                
+                // Update title if provided
+                if (data.title !== undefined) {
+                    noteTitle.value = data.title;
+                    currentNote.title = data.title;
+                    
+                    // Update title in sidebar
+                    const noteItem = document.querySelector(`.note-item[data-id="${currentNote.id}"]`);
+                    if (noteItem) {
+                        noteItem.querySelector('.note-title').textContent = data.title || 'Untitled Note';
+                    }
+                }
+                
+                // Update content if provided
+                if (data.content !== undefined) {
+                    editor.innerHTML = data.content;
+                    currentNote.content = data.content;
+                }
+                
+                // Update last edited time
+                if (data.updatedAt) {
+                    updateLastEdited(data.updatedAt);
+                }
+            }
+            
+            // Handle collaborator joining
+            function handleCollaboratorJoin(data) {
+                if (data.clientId === API.clientId) return;
+                
+                collaborators[data.clientId] = {
+                    id: data.clientId,
+                    lastSeen: Date.now()
+                };
+                
+                showToast(`Someone joined the document`);
+            }
+            
+            // Handle collaborator leaving
+            function handleCollaboratorLeave(data) {
+                if (data.clientId === API.clientId) return;
+                
+                if (collaborators[data.clientId]) {
+                    delete collaborators[data.clientId];
+                    
+                    // Remove cursor element
+                    const cursorEl = document.getElementById(`cursor-${data.clientId}`);
+                    if (cursorEl) {
+                        cursorEl.remove();
+                    }
+                    
+                    showToast(`Someone left the document`);
+                }
+            }
+            
+            // Handle collaborator cursor updates
+            function handleCollaboratorCursor(data) {
+                if (data.clientId === API.clientId) return;
+                
+                // Update or create cursor element
+                let cursorEl = document.getElementById(`cursor-${data.clientId}`);
+                
+                if (!cursorEl) {
+                    cursorEl = document.createElement('div');
+                    cursorEl.id = `cursor-${data.clientId}`;
+                    cursorEl.className = 'collaborator-cursor';
+                    
+                    const label = document.createElement('div');
+                    label.className = 'collaborator-label';
+                    label.textContent = `User ${data.clientId.slice(-4)}`;
+                    
+                    cursorEl.appendChild(label);
+                    editor.parentElement.appendChild(cursorEl);
+                }
+                
+                // Position cursor
+                cursorEl.style.left = `${data.x}px`;
+                cursorEl.style.top = `${data.y}px`;
+                
+                // Update collaborator data
+                collaborators[data.clientId] = {
+                    ...collaborators[data.clientId],
+                    id: data.clientId,
+                    lastSeen: Date.now()
+                };
+            }
+            
+            // Handle WebSocket connection
+            function handleConnect() {
+                statusEl.textContent = 'Connected';
+                statusEl.classList.add('connected');
+            }
+            
+            // Handle WebSocket disconnection
+            function handleDisconnect() {
+                statusEl.textContent = 'Reconnecting...';
+                statusEl.classList.remove('connected');
+            }
+            
+            // Update last edited timestamp
+            function updateLastEdited(timestamp) {
+                if (!timestamp) return;
+                
+                const date = new Date(timestamp);
+                const now = new Date();
+                const diff = now - date;
+                
+                let timeText;
+                
+                if (diff < 60000) { // Less than a minute
+                    timeText = 'Just now';
+                } else if (diff < 3600000) { // Less than an hour
+                    const minutes = Math.floor(diff / 60000);
+                    timeText = `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+                } else if (diff < 86400000) { // Less than a day
+                    const hours = Math.floor(diff / 3600000);
+                    timeText = `${hours} hour${hours > 1 ? 's' : ''} ago`;
+                } else {
+                    timeText = date.toLocaleDateString();
+                }
+                
+                lastEdited.textContent = `Last edited: ${timeText}`;
+            }
+            
+            // Show toast message
+            function showToast(message) {
+                let toast = document.querySelector('.toast');
+                
+                if (!toast) {
+                    toast = document.createElement('div');
+                    toast.className = 'toast';
+                    document.body.appendChild(toast);
+                }
+                
+                toast.textContent = message;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+        });
+    </script>
+</body>
+</html>

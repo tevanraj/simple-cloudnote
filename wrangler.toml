@@ -1,0 +1,23 @@
+name = "simple-cloudnote"
+main = "index.js"
+compatibility_date = "2024-04-21"
+
+[[r2_buckets]]
+binding = "NOTES"
+bucket_name = "simple-cloudnote"
+
+[durable_objects]
+bindings = [
+  { name = "NOTES_DO", class_name = "NotesCollaboration" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["NotesCollaboration"]
+
+[site]
+bucket = "./frontend"
+
+# Add this section for Workers AI
+[ai]
+binding = "AI"
